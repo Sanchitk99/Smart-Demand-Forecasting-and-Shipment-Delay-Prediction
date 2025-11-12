@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inventory Demand Forecast — Dark Theme</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+  <style>
+    body {
+      background: #0f0f10 url('bg.jpg') center/cover fixed no-repeat;
+      margin: 0;
+      padding: 0;
+    }
+    body::before{
+      content:""; position:fixed; inset:0;
+      background:rgba(0,0,0,.65); z-index:-1; backdrop-filter: blur(2px);
+    }
+    .card {
+      background: #1a1b1e;
+      box-shadow: 0 0 20px rgba(0,0,0,.4);
+    }
+    .dark-input {
+      background: #2a2b30;
+      color: white;
+      border: 1px solid #3a3b40;
+      padding: 10px;
+      border-radius: 6px;
+      width: 100%;
+    }
+    .dark-input:focus { outline: 2px solid #6366f1; }
+    .dark-table thead {
+      background: #2b2c31;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .dark-table tbody tr:hover { background: #2f3035; }
+    .chart-legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+    .chip {
+      background:#2a2b30; border:1px solid #3a3b40; color:#e5e7eb;
+      padding:6px 10px; border-radius:9999px; cursor:pointer; font-size:12px;
+    }
+    .chip.active { background:#3b82f6; border-color:#3b82f6; color:white; }
+
+    .badge {
+      display:inline-flex; align-items:center; gap:6px;
+      background:#2b2c31; border:1px solid #3a3b40; color:#cbd5e1;
+      padding:6px 10px; border-radius:9999px; font-size:12px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+  width: 240px;
+  background: #111113;
+  border-right: 1px solid #1f1f22;
+  height: 100vh;
+  position: fixed;
+  left: 0;
+  top: 0;
+  
+  display: flex;
+  flex-direction: column;   /* Important */
+  padding: 20px 15px;
+}
+
+.sidebar-menu {
+  flex-grow: 1;   /* Takes up remaining space */
+}
+
+#logoutBtnSide {
+  margin-top: auto; /* Pushes logout button to bottom */
+}
+
+    .side-title {
+  font-size: 20px;
+  font-weight: 800;
+  padding: 16px 10px;
+  text-align: center;
+
+  background: linear-gradient(90deg, #6366f1, #a855f7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+
+  border-bottom: 2px solid rgba(99, 102, 241, 0.4);
+  margin-bottom: 20px;
+  
+  text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+}
+
+    .side-item {
+      padding: 12px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 6px;
+      color: #ddd;
+      transition: 0.2s;
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .side-item:hover { background: rgba(99, 102, 241, 0.2); }
+    .side-active {
+      background: rgba(99, 102, 241, 0.35);
+      border-left: 3px solid #6366f1;
+      color: #fff;
+    }
+
+    /* Page animation */
+    .page-section { animation: fade 0.25s ease-in-out; }
+    .hidden { display:none; }
+    @keyframes fade {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+
+<body class="text-gray-200">
+
+<script>
+if (localStorage.getItem("loggedIn") !== "true") {
+  window.location.href = "login.html";
+}
+</script>
+
+<div class="sidebar">
+  <div class="side-title">Smart Demand Forecasting</div>
+
+  <div class="sidebar-menu">
+    <div class="side-item side-active" data-page="dashboard">Historical Overview</div>
+    <div class="side-item" data-page="forecasting">Demand Forecasting</div>
+    <div class="side-item" data-page="shipment">Shipment Delay Prediction</div>
+    <div class="side-item" data-page="settings">Settings</div>
+  </div>
+
+  <div id="logoutBtnSide"
+    class="side-item bg-red-700 hover:bg-red-600 text-center text-white rounded-lg">
+    Logout
+  </div>
+</div>
+
+
+<!-- Main wrapper -->
+<div style="margin-left:260px" class="p-6 max-w-7xl mx-auto">
+
+  <!-- PAGE 1: DASHBOARD -->
+  <div id="page-dashboard" class="page-section">
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-6">
+      <div class="text-center flex-1">
+        <h1 class="text-4xl font-extrabold text-white">Inventory Demand Forecast</h1>
+        <p class="text-gray-300 mt-1">Time-Series Analysis (ARIMA / Prophet)</p>
+      </div>
+    </header>
+
+    <div id="status" class="mb-4"></div>
+
+    <!-- Controls (Run button removed; dashboard is view-only) -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div class="card rounded-xl p-5 lg:col-span-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+  <label class="text-sm text-gray-100">Product Name
+    <select id="product" class="dark-input"></select>
+  </label>
+
+</div>
+
+
+        <div class="mt-4">
+          <span class="badge" id="categoryBadge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 7l9-4 9 4-9 4-9-4zm0 6l9 4 9-4M3 17l9 4 9-4"/>
+            </svg>
+            <span id="categoryText">Category: —</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Optional actions kept; you can remove this whole card if you want a strict "view-only" dashboard -->
+      <div class="card rounded-xl p-5 flex flex-col gap-3">
+        <button id="exportCsv" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">Export CSV</button>
+        <button id="exportPng" class="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded">Export PNG</button>
+      </div>
+    </section>
+
+    <!-- Summary Cards -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="card rounded-xl p-5 text-center">
+        <div class="text-xs text-gray-400">Average</div>
+        <div id="sumAvg" class="text-2xl font-bold">—</div>
+      </div>
+      <div class="card rounded-xl p-5 text-center">
+        <div class="text-xs text-gray-400">Min</div>
+        <div id="sumMin" class="text-2xl font-bold">—</div>
+      </div>
+      <div class="card rounded-xl p-5 text-center">
+        <div class="text-xs text-gray-400">Max</div>
+        <div id="sumMax" class="text-2xl font-bold">—</div>
+      </div>
+      <div class="card rounded-xl p-5 text-center">
+        <div class="text-xs text-gray-400">Trend/day</div>
+        <div id="sumTrend" class="text-2xl font-bold">—</div>
+      </div>
+    </section>
+
+    <!-- MAIN CHART (Historical only) -->
+    <section class="card rounded-xl p-5 mb-8">
+      <h2 class="text-xl font-semibold mb-3 text-gray-300">Historical Chart</h2>
+      <div class="h-96"><canvas id="chart"></canvas></div>
+    </section>
+
+    <!-- Tables -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+  <!-- Historical -->
+  <div class="card rounded-xl p-5">
+    <h3 class="text-lg font-semibold mb-3 text-gray-300">Historical (latest 100)</h3>
+    <div class="overflow-auto max-h-[500px] dark-table">
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr class="text-gray-300">
+            <th class="px-3 py-2 text-left">Date</th>
+            <th class="px-3 py-2 text-left">Units</th>
+          </tr>
+        </thead>
+        <tbody id="histTbody" class="text-gray-200"></tbody>
+      </table>
+    </div>
+  </div>
+
+<section class="card rounded-xl p-5 mb-8">
+  <h2 class="text-xl font-semibold mb-3 text-gray-300">Summary Performance</h2>
+  <div class="h-96"><canvas id="metricsChart"></canvas></div>
+</section>
+
+</section>
+
+  </div>
+
+  <!-- PAGE 2: FORECASTING -->
+  <div id="page-forecasting" class="page-section hidden">
+    <h1 class="text-4xl font-bold text-white mb-2">Forecasting</h1>
+    <p class="text-gray-300 text-lg mb-6">Run forecasts and view prediction-only charts & tables.</p>
+
+    <div id="statusForecast" class="mb-4"></div>
+
+    <!-- Forecasting Controls -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div class="card rounded-xl p-5 lg:col-span-2">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+          <label class="text-sm text-gray-400">Product
+            <select id="product2" class="dark-input"></select>
+          </label>
+
+          <label class="text-sm text-gray-400">Model
+            <select id="model2" class="dark-input">
+              <option value="arima">ARIMA</option>
+              <option value="prophet">Prophet</option>
+            </select>
+          </label>
+
+          <label class="text-sm text-gray-400">Forecast Horizon (days)
+            <input id="horizon2" type="number" min="1" max="180" value="7" class="dark-input">
+          </label>
+
+          <div class="flex items-end gap-2 flex-wrap">
+            <button class="chip" data-h2="3">3</button>
+            <button class="chip" data-h2="7">7</button>
+            <button class="chip" data-h2="14">14</button>
+            <button class="chip" data-h2="30">30</button>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <span class="badge" id="categoryBadge2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 7l9-4 9 4-9 4-9-4zm0 6l9 4 9-4M3 17l9 4 9-4"/>
+            </svg>
+            <span id="categoryText2">Category: —</span>
+          </span>
+        </div>
+
+        <div class="mt-4">
+          <button id="run2" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow">
+            Run Forecast
+          </button>
+        </div>
+      </div>
+
+      <div class="card rounded-xl p-5 flex flex-col gap-3">
+        <button id="exportCsv2" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">Export CSV</button>
+        <button id="exportPng2" class="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded">Export PNG</button>
+        <button id="retrain2" class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded">Retrain ARIMA</button>
+      </div>
+    </section>
+
+    <!-- Forecast-only charts -->
+    <section class="card rounded-xl p-5 mb-8">
+      <h2 class="text-xl font-semibold mb-3 text-gray-300">Forecast Mean</h2>
+      <div class="h-80"><canvas id="fMeanChart"></canvas></div>
+    </section>
+
+    <section class="card rounded-xl p-5 mb-8">
+      <h2 class="text-xl font-semibold mb-3 text-gray-300">Forecast Confidence Interval</h2>
+      <div class="h-80"><canvas id="fCiChart"></canvas></div>
+    </section>
+
+    <!-- Forecast table -->
+    <section class="card rounded-xl p-5">
+      <h3 class="text-lg font-semibold mb-3 text-gray-300">Forecast (95% CI)</h3>
+      <div class="overflow-auto max-h-[500px] dark-table">
+        <table class="min-w-full text-sm">
+          <thead>
+            <tr class="text-gray-300">
+              <th class="px-3 py-2 text-left">Date</th>
+              <th class="px-3 py-2 text-left">Mean</th>
+              <th class="px-3 py-2 text-left">Lower</th>
+              <th class="px-3 py-2 text-left">Upper</th>
+            </tr>
+          </thead>
+          <tbody id="fFcTbody" class="text-gray-200"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- PAGE 3: SHIPMENT -->
+  <div id="page-shipment" class="page-section hidden">
+    <h1 class="text-4xl font-bold text-white mb-4">Shipment Delay Prediction</h1>
+    <p class="text-gray-300 text-lg mb-4">Train the model and predict if a shipment will be delayed.</p>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Form -->
+      <div class="card rounded-xl p-5 lg:col-span-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label class="text-sm">Origin
+            <input id="sd_origin" class="dark-input" placeholder="Delhi">
+          </label>
+          <label class="text-sm">Destination
+            <input id="sd_destination" class="dark-input" placeholder="Pune">
+          </label>
+          <label class="text-sm">Carrier
+            <input id="sd_carrier" class="dark-input" placeholder="BlueDart">
+          </label>
+          <label class="text-sm">Weather Condition
+            <select id="sd_weather" class="dark-input">
+              <option>Sunny</option><option>Cloudy</option><option>Rainy</option>
+              <option>Storm</option><option>Fog</option>
+            </select>
+          </label>
+          <label class="text-sm">Distance (KM)
+            <input id="sd_distance" type="number" class="dark-input" value="350">
+          </label>
+          <label class="text-sm">Expected Delivery (days)
+            <input id="sd_etd" type="number" class="dark-input" value="5">
+          </label>
+          <label class="text-sm">Holiday (0/1)
+            <input id="sd_holiday" type="number" class="dark-input" value="0" min="0" max="1">
+          </label>
+          <label class="text-sm">Customs Clearance (days)
+            <input id="sd_customs" type="number" class="dark-input" step="0.1" value="0.5">
+          </label>
+          <label class="text-sm">Handling at Warehouse (days)
+            <input id="sd_handling" type="number" class="dark-input" step="0.1" value="0.6">
+          </label>
+        </div>
+
+        <div class="mt-5 flex gap-3 flex-wrap">
+          <button id="sd_train" class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded">
+            Train Model
+          </button>
+          <button id="sd_predict" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+            Predict Delay
+          </button>
+          <button id="sd_sample" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded">
+            Load Sample Row
+          </button>
+        </div>
+      </div>
+
+      <!-- Output -->
+      <div class="card rounded-xl p-5">
+        <h3 class="font-semibold mb-2 text-gray-300">Results</h3>
+        <pre id="sd_output" class="text-sm text-gray-200 whitespace-pre-wrap"></pre>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- PAGE 4: SETTINGS -->
+  <div id="page-settings" class="page-section hidden">
+    <h1 class="text-4xl font-bold text-white mb-4">Settings</h1>
+    <p class="text-gray-300 text-lg">Theme, preferences, and user settings.</p>
+  </div>
+
+</div>
+
+<!-- JS -->
+<script>
+  const productNameMap = {
+  "P0001": "Rice",
+  "P0002": "Toy Car",
+  "P0003": "Building Blocks",
+  "P0004": "Puzzle Toy",
+  "P0005": "Phone Charger",
+  "P0006": "Cooking Oil",
+  "P0007": "Wooden Table",
+  "P0008": "T-Shirt",
+  "P0009": "Wireless Headset",
+  "P0010": "Rubber Ball",
+  "P0011": "Office Chair",
+  "P0012": "Jeans",
+  "P0013": "Action Figure",
+  "P0014": "Shirt",
+  "P0015": "Jacket",
+  "P0016": "Power Bank",
+  "P0017": "Doll",
+  "P0018": "Hoodie",
+  "P0019": "Pants",
+  "P0020": "Toy Train"
+};
+
+const API = p => `http://127.0.0.1:8000${p}`;
+
+let chart;                    // dashboard chart (historical only)
+let fMeanChart, fCiChart;     // forecasting charts
+let productsCache = [];
+let metricsChart;
+
+/* Sidebar page switching */
+const sidebarItems = document.querySelectorAll(".side-item[data-page]");
+sidebarItems.forEach(item => {
+  item.addEventListener("click", () => {
+    document.querySelectorAll(".side-item").forEach(i => i.classList.remove("side-active"));
+    item.classList.add("side-active");
+
+    document.querySelectorAll(".page-section").forEach(p => p.classList.add("hidden"));
+    const pageId = "page-" + item.dataset.page;
+    document.getElementById(pageId).classList.remove("hidden");
+  });
+});
+
+/* Logout */
+document.getElementById("logoutBtnSide").onclick = () => {
+  localStorage.removeItem("loggedIn");
+  window.location.href = "login.html";
+};
+
+function setStatus(msg, type="info"){
+  const c = type==="error" ? "bg-red-900 text-red-300" : "bg-blue-900 text-blue-300";
+  const html = `<div class="p-3 rounded mb-4 ${c}">${msg}</div>`;
+  const s1 = document.getElementById("status");
+  const s2 = document.getElementById("statusForecast");
+  if (s1) s1.innerHTML = html;
+  if (s2) s2.innerHTML = html;
+}
+
+function fmt(n){ return Number(n).toLocaleString(); }
+
+function baseLineChartConfig() {
+  return {
+    type:"line",
+    data:{ labels:[], datasets:[] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:"white"}} },
+      scales:{ x:{ ticks:{color:"#cbd5e1"} }, y:{ ticks:{color:"#cbd5e1"} } }
+    }
+  };
+}
+function initCharts(){
+  chart = new Chart(document.getElementById("chart"), baseLineChartConfig());
+  // forecasting page charts
+  fMeanChart = new Chart(document.getElementById("fMeanChart"), baseLineChartConfig());
+  fCiChart = new Chart(document.getElementById("fCiChart"), baseLineChartConfig());
+}
+function initMetricsChart() {
+  const ctx = document.getElementById("metricsChart").getContext("2d");
+
+  metricsChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Average", "Min", "Max"],
+      datasets: [
+        {
+          label: "Value",
+          data: [0, 0, 0],
+          backgroundColor: [
+            "rgba(59,130,246,0.8)",   // Avg = blue
+            "rgba(16,185,129,0.8)",  // Min = green
+            "rgba(168,85,247,0.8)"   // Max = purple
+          ],
+          borderColor: [
+            "rgba(59,130,246,1)",
+            "rgba(16,185,129,1)",
+            "rgba(168,85,247,1)"
+          ],
+          borderWidth: 1,
+          borderRadius: 12
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { color: "#cbd5e1" }
+        },
+        x: {
+          ticks: { color: "#cbd5e1" }
+        }
+      }
+    }
+  });
+}
+async function loadProducts(){
+  const r = await fetch(API("/products"));
+  const j = await r.json();
+  productsCache = j.products || [];
+
+  const sel1 = document.getElementById("product");   // Dashboard dropdown
+  sel1.innerHTML = "";
+
+  const sel2 = document.getElementById("product2");  // Forecast dropdown
+  sel2.innerHTML = "";
+
+  for(const p of productsCache){
+
+    // -------------------------
+    // ✅ Dashboard dropdown
+    // -------------------------
+    const o1 = document.createElement("option");
+    o1.value = p.name;
+
+    // ✅ Display friendly name
+    o1.textContent = productNameMap[p.name] || p.name;
+
+    sel1.appendChild(o1);
+
+    // -------------------------
+    // ✅ Forecast dropdown
+    // -------------------------
+    const o2 = document.createElement("option");
+    o2.value = p.name;
+
+    // ✅ Display friendly name
+    o2.textContent = productNameMap[p.name] || p.name;
+
+    sel2.appendChild(o2);
+  }
+
+  updateCategoryBadge();
+  updateCategoryBadge2();
+}
+function updateCategoryBadge(){
+  const val = document.getElementById("product").value;
+  const obj = productsCache.find(x => x.name === val);
+
+  document.getElementById("categoryText").textContent =
+    "Category: " + (obj?.category || "—");
+}
+function updateCategoryBadge2(){
+  const val = document.getElementById("product2").value;
+  const obj = productsCache.find(x => x.name === val);
+
+  document.getElementById("categoryText2").textContent =
+    "Category: " + (obj?.category || "—");
+}
+
+async function loadHistoryAndSummary(){
+  const product = document.getElementById("product").value;
+  const h = await (await fetch(API(`/history?product=${product}&limit=3650`))).json();
+
+  const tb = document.getElementById("histTbody");
+  tb.innerHTML = "";
+  const start = Math.max(0, h.dates.length - 100);
+  for(let i=h.dates.length-1;i>=start;i--){
+    tb.innerHTML += `<tr>
+      <td class="px-3 py-2">${h.dates[i]}</td>
+      <td class="px-3 py-2">${fmt(h.values[i])}</td>
+    </tr>`;
+  }
+
+  const s = await (await fetch(API(`/summary?product=${product}&window=180`))).json();
+  document.getElementById("sumAvg").textContent = fmt(Number(s.average).toFixed(2));
+  document.getElementById("sumMin").textContent = fmt(s.min);
+  document.getElementById("sumMax").textContent = fmt(s.max);
+
+  const slope = s.trend_slope_per_day;
+  document.getElementById("sumTrend").textContent =
+    (slope >= 0 ? "▲ " : "▼ ") + Math.abs(slope).toFixed(2);
+    
+
+  chart.data.labels = h.dates;
+  chart.data.datasets = [{
+    label:"Historical",
+    data:h.values,
+    borderColor:"#38bdf8",
+    backgroundColor:"rgba(56,189,248,0.1)",
+    tension:0.2,
+    pointRadius:0
+  }];
+if (metricsChart) {
+  metricsChart.data.datasets[0].data = [
+    Number(s.average),
+    s.min,
+    s.max
+  ];
+  metricsChart.update();
+}
+
+  chart.update();
+}
+
+function updateForecastingCharts(fc){
+  // Forecasting page prediction charts
+  fMeanChart.data.labels = fc.dates;
+  fMeanChart.data.datasets = [{
+    label:"Forecast Mean",
+    data:fc.mean,
+    borderColor:"#10b981",
+    backgroundColor:"rgba(16,185,129,0.15)",
+    tension:0.2,
+    pointRadius:0
+  }];
+  fMeanChart.update();
+
+  fCiChart.data.labels = fc.dates;
+  fCiChart.data.datasets = [
+    {
+      label:"Lower Bound",
+      data:fc.lower,
+      borderColor:"#f97316",
+      backgroundColor:"rgba(249,115,22,0.15)",
+      tension:0.2,
+      pointRadius:0
+    },
+    {
+      label:"Upper Bound",
+      data:fc.upper,
+      borderColor:"#6366f1",
+      backgroundColor:"rgba(99,102,241,0.15)",
+      tension:0.2,
+      pointRadius:0
+    }
+  ];
+  fCiChart.update();
+}
+
+function renderForecastTable2(fc){
+  const tb = document.getElementById("fFcTbody");
+  tb.innerHTML = "";
+  for(let i=0;i<fc.dates.length;i++){
+    tb.innerHTML += `
+      <tr>
+        <td class="px-3 py-2">${fc.dates[i]}</td>
+        <td class="px-3 py-2">${fmt(fc.mean[i])}</td>
+        <td class="px-3 py-2">${fmt(fc.lower[i])}</td>
+        <td class="px-3 py-2">${fmt(fc.upper[i])}</td>
+      </tr>`;
+  }
+}
+
+async function runForecast2(){
+  const product = document.getElementById("product2").value;
+  const model = document.getElementById("model2").value;
+  const horizon = Number(document.getElementById("horizon2").value);
+
+  setStatus(`Running ${model.toUpperCase()} forecast for ${horizon} days...`);
+
+  const fc = await (await fetch(API(`/forecast?product=${product}&model=${model}&steps=${horizon}`))).json();
+
+  // Update forecasting page only
+  updateForecastingCharts(fc);
+  renderForecastTable2(fc);
+
+  setStatus("Forecast complete.");
+}
+
+async function exportCSV(){
+  const p = document.getElementById("product").value;
+  const m = document.getElementById("model").value;
+  const s = document.getElementById("horizon").value;
+
+  const r = await fetch(API(`/export/forecast_csv?product=${p}&model=${m}&steps=${s}`));
+  const blob = await r.blob();
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `forecast_${p}_${m}.csv`;
+  a.click();
+}
+
+async function exportPNG(){
+  const p = document.getElementById("product").value;
+  const m = document.getElementById("model").value;
+  const s = document.getElementById("horizon").value;
+
+  const r = await fetch(API(`/export/plot_png?product=${p}&model=${m}&steps=${s}`));
+  const blob = await r.blob();
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `forecast_${p}_${m}.png`;
+  a.click();
+}
+
+async function exportCSV2(){
+  const p = document.getElementById("product2").value;
+  const m = document.getElementById("model2").value;
+  const s = document.getElementById("horizon2").value;
+
+  const r = await fetch(API(`/export/forecast_csv?product=${p}&model=${m}&steps=${s}`));
+  const blob = await r.blob();
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `forecast_${p}_${m}.csv`;
+  a.click();
+}
+
+async function exportPNG2(){
+  const p = document.getElementById("product2").value;
+  const m = document.getElementById("model2").value;
+  const s = document.getElementById("horizon2").value;
+
+  const r = await fetch(API(`/export/plot_png?product=${p}&model=${m}&steps=${s}`));
+  const blob = await r.blob();
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `forecast_${p}_${m}.png`;
+  a.click();
+}
+
+async function retrain(){
+  const p = document.getElementById("product").value;
+  setStatus("Retraining ARIMA...");
+  await fetch(API(`/retrain?product=${p}`), { method:"POST" });
+  await loadHistoryAndSummary();
+  setStatus("Retrain complete.");
+}
+
+async function retrain2(){
+  const p = document.getElementById("product2").value;
+  setStatus("Retraining ARIMA...");
+  await fetch(API(`/retrain?product=${p}`), { method:"POST" });
+  setStatus("Retrain complete.");
+}
+
+/* Chips on forecasting page */
+document.addEventListener("click", (e)=>{
+  if(e.target.classList.contains("chip") && e.target.dataset.h2){
+    document.querySelectorAll('.chip[data-h2]').forEach(c=>c.classList.remove("active"));
+    e.target.classList.add("active");
+    document.getElementById("horizon2").value = e.target.dataset.h2;
+  }
+});
+
+/* Bindings (dashboard run removed) */
+document.getElementById("exportCsv").onclick = exportCSV;
+document.getElementById("exportPng").onclick = exportPNG;
+const retrainBtn = document.getElementById("retrain");
+if (retrainBtn) retrainBtn.onclick = retrain;
+
+
+document.getElementById("run2").onclick = runForecast2;
+document.getElementById("exportCsv2").onclick = exportCSV2;
+document.getElementById("exportPng2").onclick = exportPNG2;
+document.getElementById("retrain2").onclick = retrain2;
+
+document.getElementById("product")?.addEventListener("change", ()=>{
+  updateCategoryBadge();
+  loadHistoryAndSummary();
+});
+document.getElementById("product2")?.addEventListener("change", ()=>{
+  updateCategoryBadge2();
+});
+
+function initMetricsChart() {
+  const ctx = document.getElementById("metricsChart").getContext("2d");
+
+  metricsChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: ["Average", "Min", "Max"],
+      datasets: [
+        {
+          label: "Value",
+          data: [0, 0, 0],
+          backgroundColor: [
+            "rgba(59,130,246,0.85)",
+            "rgba(16,185,129,0.85)",
+            "rgba(168,85,247,0.85)"
+          ],
+          borderRadius: 12,
+          borderSkipped: false,
+          yAxisID: "y"
+        },
+        {
+          label: "Trend (per day)",
+          type: "line",
+          data: [0, 0, 0],
+          borderColor: "rgba(255,180,180,0.9)",
+          backgroundColor: "rgba(255,180,180,0.4)",
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: "white",
+          pointBorderColor: "rgba(255,180,180,1)",
+          yAxisID: "y1"
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { color: "white" },
+          grid: { color: "rgba(255,255,255,0.1)" }
+        },
+        y1: {
+          beginAtZero: true,
+          position: "right",
+          ticks: { color: "rgba(255,180,180,0.9)" },
+          grid: { display: false }
+        },
+        x: {
+          ticks: { color: "white" }
+        }
+      },
+      plugins: {
+        legend: {
+          labels: {
+            color: "white",
+            usePointStyle: true,
+            pointStyle: "circle",
+          }
+        }
+      }
+    }
+  });
+}
+/* Init */
+window.onload = async () => {
+  initCharts();
+  initMetricsChart();
+  await loadProducts();
+
+  // default chip highlight on forecasting page
+  const chip7 = document.querySelector('.chip[data-h2="7"]');
+  if (chip7) chip7.classList.add("active");
+
+  await loadHistoryAndSummary();
+};
+// ================================
+// ✅ SHIPMENT DELAY — FINAL JS FIX
+// ================================
+// Load sample row
+async function sdLoadSample(){
+  const r = await fetch(API("/delay/sample?n=1"));
+  const j = await r.json();
+  const row = j.rows?.[0] || {};
+
+  document.getElementById("sd_origin").value = row.Origin ?? "";
+  document.getElementById("sd_destination").value = row.Destination ?? "";
+  document.getElementById("sd_carrier").value = row.Carrier ?? "";
+  document.getElementById("sd_weather").value = row.WeatherCondition ?? "Sunny";
+  document.getElementById("sd_distance").value = row.DistanceKM ?? 0;
+  document.getElementById("sd_etd").value = row.ExpectedDeliveryDays ?? 0;
+  document.getElementById("sd_holiday").value = row.Holiday ?? 0;
+  document.getElementById("sd_customs").value = row.CustomsClearanceTime ?? 0;
+  document.getElementById("sd_handling").value = row.HandlingTimeWarehouse ?? 0;
+}
+
+async function sdPredict() {
+  const payload = {
+    Origin: document.getElementById("sd_origin").value,
+    Destination: document.getElementById("sd_destination").value,
+    Carrier: document.getElementById("sd_carrier").value,
+    WeatherCondition: document.getElementById("sd_weather").value,
+    DistanceKM: Number(document.getElementById("sd_distance").value),
+    ExpectedDeliveryDays: Number(document.getElementById("sd_etd").value),
+    Holiday: Number(document.getElementById("sd_holiday").value),
+    CustomsClearanceTime: Number(document.getElementById("sd_customs").value),
+    HandlingTimeWarehouse: Number(document.getElementById("sd_handling").value)
+  };
+
+  const r = await fetch(API("/delay/predict"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+
+  const j = await r.json();
+
+  const result = j.predicted_delay ? "DELAYED" : "ON-TIME";
+  const prob = (j.delay_probability * 100).toFixed(2) + "%";
+
+  document.getElementById("sd_output").innerHTML =
+    `<div class="text-lg">
+        <span class="text-gray-300">Prediction:</span> 
+        <span class="font-bold text-white">${result}</span><br><br>
+
+        <span class="text-gray-300">Probability:</span> 
+        <span class="font-bold text-white">${prob}</span>
+     </div>`;
+}
+// Train model
+async function sdTrain(){
+  document.getElementById("sd_output").innerHTML =
+    "<span class='text-yellow-400'>Training model...</span>";
+
+  const r = await fetch(API("/delay/train"), { method: "POST" });
+  const j = await r.json();
+
+  document.getElementById("sd_output").innerHTML =
+    `<strong class="text-emerald-400">Model Trained</strong><br>
+     Accuracy: ${(j.accuracy*100).toFixed(2)}%<br>
+     F1: ${(j.f1_score*100).toFixed(2)}%<br>
+     ROC-AUC: ${(j.roc_auc*100).toFixed(2)}%`;
+}
+
+// ✅ Bind buttons safely
+window.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("sd_train").onclick = sdTrain;
+  document.getElementById("sd_predict").onclick = sdPredict;
+  document.getElementById("sd_sample").onclick = sdLoadSample;
+});
+
+</script>
+</body>
+</html>

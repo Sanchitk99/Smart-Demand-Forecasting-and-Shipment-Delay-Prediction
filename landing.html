@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Demand Forecasting Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        .remove-gap {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+        }
+
+        /* ✅ Gradient Title */
+        .gradient-title {
+            background: linear-gradient(90deg, #ececec, #6366f1, #14b8a6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* ✅ Fade + Slide Animation */
+        @keyframes fadeSlideUp {
+            0% {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-hero {
+            animation: fadeSlideUp 1.2s ease-out forwards;
+        }
+
+        .animate-delay-1 {
+            animation-delay: 0.3s;
+        }
+        .animate-delay-2 {
+            animation-delay: 0.6s;
+        }
+        .animate-delay-3 {
+            animation-delay: 0.9s;
+        }
+
+        /* ✅ Background image added to entire body */
+        body {
+            background: url('bg.jpg') center/cover no-repeat fixed;
+            background-color: #0f172a; /* fallback for dark mode */
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-white">
+
+    <!-- NAVBAR -->
+    <nav class="flex items-center justify-between px-10 py-6 bg-gray-900/40 backdrop-blur-md fixed w-full z-50 border-b border-gray-700/40">
+        <div class="text-2xl font-bold flex items-center space-x-2">
+            <span class="text-purple-400 text-3xl">📊</span>
+            <span>Smart Demand Forecasting Platform</span>
+        </div>
+
+        <div class="space-x-8 hidden md:flex">
+            <a href="#" class="hover:text-purple-400">Home</a>
+            <a href="#" class="hover:text-purple-400">Features</a>
+            <a href="#" class="hover:text-purple-400">Pricing</a>
+            <a href="#" class="hover:text-purple-400">Documentation</a>
+            <a href="#" class="hover:text-purple-400">Contact</a>
+        </div>
+
+        <a href="login.html" class="px-5 py-2 bg-purple-500 hover:bg-purple-600 rounded-lg text-white font-semibold">
+            Login
+        </a>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="h-screen flex flex-col items-center justify-center text-center px-6 remove-gap"
+        style="background: url('warehouse_bg.jpg') center/cover no-repeat;">
+
+        <!-- ✅ Gradient + Animation -->
+        <h1 class="text-5xl md:text-7xl font-extrabold mb-6 gradient-title animate-hero">
+            Welcome to Smart Demand Forecasting Platform
+        </h1>
+
+        <p class="text-xl md:text-3xl font-semibold text-purple-300 mb-6 animate-hero animate-delay-1">
+            AI-Powered Demand Forecasting & Inventory Intelligence
+        </p>
+
+        <p class="max-w-3xl text-lg md:text-xl text-gray-300 leading-relaxed animate-hero animate-delay-2">
+            Predict demand, reduce stockouts, prevent overstocking, optimize procurement,
+            and make confident data-driven decisions — all on a unified intelligent forecasting platform.
+        </p>
+
+        <div class="mt-8 flex space-x-6 animate-hero animate-delay-3">
+            <a href="login.html"
+               class="px-8 py-3 bg-purple-500 hover:bg-purple-600 rounded-lg text-lg font-medium">
+               Login to Dashboard
+            </a>
+
+            <a href="#features"
+               class="px-8 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg text-lg font-medium border border-gray-600">
+               Explore Features
+            </a>
+        </div>
+    </section>
+
+    <!-- PLATFORM CAPABILITIES -->
+    <section id="features" class="py-20 bg-gray-900 text-center">
+        <h2 class="text-4xl md:text-5xl font-bold mb-16 gradient-title">
+            Platform Capabilities
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-10 px-10">
+
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-700 hover:border-purple-400 transition">
+                <h3 class="text-2xl font-semibold mb-4">Advanced Time-Series Forecasting</h3>
+                <p class="text-gray-300">
+                    Predict future demand using ARIMA, SARIMA, Prophet, and hybrid ML models trained on your sales data.
+                </p>
+            </div>
+
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-700 hover:border-purple-400 transition">
+                <h3 class="text-2xl font-semibold mb-4">Feature-Driven Accuracy</h3>
+                <p class="text-gray-300">
+                    Uses weather, holidays, promotions, competitor pricing, and seasonality to improve accuracy.
+                </p>
+            </div>
+
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-700 hover:border-purple-400 transition">
+                <h3 class="text-2xl font-semibold mb-4">Inventory Optimization</h3>
+                <p class="text-gray-300">
+                    Reduce stockouts and overstocking while improving planning and procurement decisions.
+                </p>
+            </div>
+
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-lg border border-gray-700 hover:border-purple-400 transition">
+                <h3 class="text-2xl font-semibold mb-4">Real-Time Insights</h3>
+                <p class="text-gray-300">
+                    Customizable dashboards for SKU, store, category, and regional forecasting.
+                </p>
+            </div>
+
+        </div>
+    </section>
+
+</body>
+</html>

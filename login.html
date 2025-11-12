@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Inventory Forecast Dashboard</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body {
+      background: #0f0f10 url('bg.jpg') center/cover fixed no-repeat;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      z-index: -1;
+    }
+    .card {
+      background: rgba(26,27,30,0.85);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 0 25px rgba(0,0,0,.5);
+    }
+    .dark-input {
+      background: rgba(42,43,48,0.85);
+      color: white;
+      border: 1px solid #3a3b40;
+      padding: 12px;
+      border-radius: 8px;
+      width: 100%;
+    }
+    .dark-input:focus {
+      outline: 2px solid #6366f1;
+    }
+  </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen text-gray-200">
+
+  <!-- ✅ TRANSPARENT BACK BUTTON -->
+  <button id="backBtn"
+    class="fixed top-5 left-5 text-gray-300 hover:text-white
+           bg-transparent border border-gray-600 hover:border-gray-400
+           px-3 py-1 rounded-lg transition">
+    ← Back
+  </button>
+
+  <!-- LOGIN CARD -->
+  <div class="card p-10 rounded-2xl w-full max-w-md border border-gray-700">
+    <h1 class="text-3xl font-bold text-center text-white mb-6">
+      Inventory Forecast Login
+    </h1>
+
+    <div id="status"></div>
+
+    <label class="block mb-4 text-sm text-gray-400">Username
+      <input type="text" id="username" class="dark-input mt-1" placeholder="Enter username">
+    </label>
+
+    <label class="block mb-6 text-sm text-gray-400">Password
+      <input type="password" id="password" class="dark-input mt-1" placeholder="Enter password">
+    </label>
+
+    <button id="loginBtn"
+      class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg">
+      Login
+    </button>
+
+    <button id="createBtn"
+      class="w-full mt-3 bg-emerald-700 hover:bg-emerald-600 text-white py-2 rounded-lg">
+      Create Account
+    </button>
+
+    <button id="forgotBtn"
+      class="w-full mt-3 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg">
+      Forgot Password?
+    </button>
+
+    <p class="text-center text-gray-400 mt-6 text-xs">
+      Powered by ARIMA + Prophet Forecasting Models
+    </p>
+  </div>
+
+
+  <!-- ✅ CREATE ACCOUNT MODAL -->
+  <div id="createModal"
+       class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center hidden">
+
+    <div class="card p-8 rounded-xl w-full max-w-lg">
+      <h2 class="text-2xl font-bold text-white mb-4">Create Account</h2>
+
+      <label class="text-sm text-gray-400">Full Name
+        <input id="newName" class="dark-input mt-1" placeholder="Enter name">
+      </label>
+
+      <label class="text-sm text-gray-400 mt-3">Mobile Number
+        <input id="newMobile" class="dark-input mt-1" placeholder="Enter mobile number">
+      </label>
+
+      <label class="text-sm text-gray-400 mt-3">Email (optional)
+        <input id="newEmail" class="dark-input mt-1" placeholder="Enter email address">
+      </label>
+
+      <label class="text-sm text-gray-400 mt-3">Username
+        <input id="newUser" class="dark-input mt-1" placeholder="Create username">
+      </label>
+
+      <label class="text-sm text-gray-400 mt-3">Password
+        <input id="newPass" type="password" class="dark-input mt-1" placeholder="Create password">
+      </label>
+
+      <div class="flex gap-3 mt-6">
+        <button id="saveAccount"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg">
+          Save
+        </button>
+        <button id="closeModal"
+          class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg">
+          Cancel
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ✅ FORGOT PASSWORD MODAL -->
+  <div id="forgotModal"
+       class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center hidden">
+
+    <div class="card p-8 rounded-xl w-full max-w-lg">
+      <h2 class="text-2xl font-bold text-white mb-4">Recover Password</h2>
+
+      <label class="text-sm text-gray-400">Enter Username
+        <input id="fpUser" class="dark-input mt-1" placeholder="Your username">
+      </label>
+
+      <label class="text-sm text-gray-400 mt-3">Enter Mobile Number
+        <input id="fpMobile" class="dark-input mt-1" placeholder="Registered mobile number">
+      </label>
+
+      <div class="flex gap-3 mt-6">
+        <button id="recoverBtn"
+          class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg">
+          Recover
+        </button>
+        <button id="closeForgot"
+          class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg">
+          Cancel
+        </button>
+      </div>
+
+      <p id="fpResult" class="mt-4 text-center font-bold"></p>
+    </div>
+
+  </div>
+
+
+<script>
+function showStatus(msg, type="info"){
+  const c = type==="error" ? "bg-red-900 text-red-300" : "bg-blue-900 text-blue-300";
+  document.getElementById("status").innerHTML =
+    `<div class="p-3 mb-3 rounded ${c}">${msg}</div>`;
+}
+
+/* ✅ Local user storage */
+function getUsers(){
+  return JSON.parse(localStorage.getItem("users") || "[]");
+}
+function saveUsers(users){
+  localStorage.setItem("users", JSON.stringify(users));
+}
+
+/* ✅ LOGIN */
+document.getElementById("loginBtn").onclick = () => {
+  const user = username.value.trim();
+  const pass = password.value.trim();
+
+  if(!user || !pass){
+    showStatus("Please enter username and password.", "error");
+    return;
+  }
+
+  const users = getUsers();
+  const found = users.find(u => u.username === user && u.password === pass);
+
+  if(found){
+    localStorage.setItem("loggedIn", "true");
+    window.location.href = "index.html";
+  } else {
+    showStatus("Invalid username or password.", "error");
+  }
+};
+
+/* ✅ CREATE ACCOUNT POPUP */
+document.getElementById("createBtn").onclick = () => {
+  document.getElementById("createModal").classList.remove("hidden");
+};
+document.getElementById("closeModal").onclick = () => {
+  document.getElementById("createModal").classList.add("hidden");
+};
+
+/* ✅ SAVE NEW ACCOUNT */
+document.getElementById("saveAccount").onclick = () => {
+
+  const name = newName.value.trim();
+  const mobile = newMobile.value.trim();
+  const email = newEmail.value.trim();
+  const user = newUser.value.trim();
+  const pass = newPass.value.trim();
+
+  if(!name || !mobile || !user || !pass){
+    alert("Name, Mobile, Username, and Password are required.");
+    return;
+  }
+
+  const users = getUsers();
+
+  if(users.some(u => u.username === user)){
+    alert("Username already exists. Choose another.");
+    return;
+  }
+
+  users.push({
+    name,
+    mobile,
+    email,
+    username: user,
+    password: pass
+  });
+
+  saveUsers(users);
+
+  alert("Account created successfully!");
+  document.getElementById("createModal").classList.add("hidden");
+
+  newName.value = "";
+  newMobile.value = "";
+  newEmail.value = "";
+  newUser.value = "";
+  newPass.value = "";
+};
+
+/* ✅ FORGOT PASSWORD MODAL */
+document.getElementById("forgotBtn").onclick = () => {
+  document.getElementById("forgotModal").classList.remove("hidden");
+};
+
+document.getElementById("closeForgot").onclick = () => {
+  document.getElementById("forgotModal").classList.add("hidden");
+  document.getElementById("fpResult").textContent = "";
+};
+
+/* ✅ PASSWORD RECOVERY */
+document.getElementById("recoverBtn").onclick = () => {
+  const uname = fpUser.value.trim();
+  const mobile = fpMobile.value.trim();
+
+  if(!uname || !mobile){
+    alert("Please enter username and mobile number.");
+    return;
+  }
+
+  const users = getUsers();
+  const user = users.find(u => u.username === uname && u.mobile === mobile);
+
+  if(user){
+    fpResult.textContent = `Your password is: ${user.password}`;
+    fpResult.className = "mt-4 text-center font-bold text-green-400";
+  } else {
+    fpResult.textContent = "No matching account found!";
+    fpResult.className = "mt-4 text-center font-bold text-red-400";
+  }
+};
+
+/* ✅ BACK BUTTON */
+document.getElementById("backBtn").onclick = () => {
+  window.location.href = "landing.html";
+};
+</script>
+
+</body>
+</html>
