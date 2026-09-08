@@ -14,7 +14,7 @@ import warnings
 warnings.simplefilter("ignore", ConvergenceWarning)
 
 # ============================================================
-# ✅ FIRST FIX: CREATE FASTAPI APP AT TOP BEFORE ANY DECORATORS
+# FIRST FIX: CREATE FASTAPI APP AT TOP BEFORE ANY DECORATORS
 # ============================================================
 
 app = FastAPI(title="Inventory Forecast API (Option A)", version="1.2")
